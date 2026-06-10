@@ -20,7 +20,6 @@ function onEdit(e) {
 
   const newValue = e.value;
   const addEmployeeActions = getAddEmployeeActionMap();
-  const debugAddRowsActions = getDebugAddRowsActionMap();
 
   if (newValue === STATUS_WORKING) {
     if (runLockedAction(sheet, function() {
@@ -39,13 +38,6 @@ function onEdit(e) {
   if (addEmployeeActions[newValue]) {
     if (runLockedAction(sheet, function() {
       addEmployeeToSection(sheet, addEmployeeActions[newValue]);
-    })) resetStatus(sheet);
-    return;
-  }
-
-  if (DEBUG_MODE === 1 && debugAddRowsActions[newValue]) {
-    if (runLockedAction(sheet, function() {
-      addEmptyRowsToSection(sheet, debugAddRowsActions[newValue], DEBUG_EMPTY_ROWS_TO_ADD);
     })) resetStatus(sheet);
     return;
   }
