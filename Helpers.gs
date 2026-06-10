@@ -13,11 +13,8 @@ function getMasterOptions() {
   getShiftSections().forEach(function(section) {
     options.push(section.addLabel);
   });
-  if (isDebugModeEnabled_()) {
+  if (DEBUG_MODE === 1) {
     options.push(STATUS_CREATE_DOCUMENT);
-    getShiftSections().forEach(function(section) {
-      options.push(getDebugAddRowsLabel_(section));
-    });
   }
   return options;
 }
@@ -26,15 +23,6 @@ function getAddEmployeeActionMap() {
   const actionMap = {};
   getShiftSections().forEach(function(section) {
     actionMap[section.addLabel] = section.key;
-  });
-  return actionMap;
-}
-
-function getDebugAddRowsActionMap() {
-  const actionMap = {};
-  if (!isDebugModeEnabled_()) return actionMap;
-  getShiftSections().forEach(function(section) {
-    actionMap[getDebugAddRowsLabel_(section)] = section.key;
   });
   return actionMap;
 }
@@ -64,7 +52,6 @@ function initializeAuditSheet() {
   sheet.setFrozenColumns(0);
   ensureEnoughColumns_(sheet, FIRST_ATTENDANCE_COLUMN);
   setupMasterSelector(sheet);
-  writeGlobalHeaderRow(sheet);
   ensureShiftSections(sheet);
   resetStatus(sheet);
 }
@@ -114,9 +101,9 @@ function ensureShiftSections(sheet) {
   getShiftSections().forEach(function(section) {
     if (existing[section.key]) return;
     const row = getConfiguredSectionInsertRow_(section);
-    ensureEnoughRows_(sheet, row);
-    if (rowHasAnyData_(sheet, row)) {
-      sheet.insertRowsBefore(row, SECTION_TITLE_ROWS);
+    ensureEnoughRows_(sheet, row + SECTION_HEADER_ROWS);
+    if (rowHasAnyData_(sheet, row) || rowHasAnyData_(sheet, row + 1)) {
+      sheet.insertRowsBefore(row, SECTION_TITLE_ROWS + SECTION_HEADER_ROWS);
     }
     writeSectionSkeleton_(sheet, row, section);
   });
@@ -149,7 +136,8 @@ function findSectionBounds(sheet) {
 
   return titles.map(function(section, index) {
     const nextTitleRow = index + 1 < titles.length ? titles[index + 1].titleRow : null;
-    section.employeeStartRow = section.titleRow + SECTION_TITLE_ROWS;
+    section.headerRow = section.titleRow + SECTION_TITLE_ROWS;
+    section.employeeStartRow = section.headerRow + SECTION_HEADER_ROWS;
     section.employeeEndRow = nextTitleRow ? nextTitleRow - 1 : Math.max(bottomRow, section.employeeStartRow - 1);
     section.numEmployeeRows = Math.max(0, section.employeeEndRow - section.employeeStartRow + 1);
     return section;
@@ -169,7 +157,7 @@ function addEmployeeToSection(sheet, sectionKey) {
   if (templateRow) {
     sheet.getRange(templateRow, 1, 1, width).copyTo(sheet.getRange(insertRow, 1, 1, width), { contentsOnly: false });
   } else {
-    sheet.getRange(TABLE_HEADER_ROW, 1, 1, width).copyTo(sheet.getRange(insertRow, 1, 1, width), { formatOnly: true });
+    sheet.getRange(bounds.headerRow, 1, 1, width).copyTo(sheet.getRange(insertRow, 1, 1, width), { formatOnly: true });
   }
 
   sheet.getRange(insertRow, 1, 1, width).clearContent();
@@ -179,26 +167,7 @@ function addEmployeeToSection(sheet, sectionKey) {
 
 function runMainWorkflow(sheet) {
   ensureShiftSections(sheet);
-  removeSectionHeaderRows_(sheet);
   sortAllSections(sheet);
-  applyAuditFormatting();
-}
-
-function addEmptyRowsToSection(sheet, sectionKey, rowCount) {
-  ensureShiftSections(sheet);
-  const bounds = findSectionBounds(sheet).filter(function(section) { return section.key === sectionKey; })[0];
-  if (!bounds) throw new Error("No shift section found for key: " + sectionKey);
-
-  const rowsToAdd = rowCount || DEBUG_EMPTY_ROWS_TO_ADD;
-  const width = getAuditWidth();
-  const insertRow = bounds.numEmployeeRows > 0 ? bounds.employeeEndRow + 1 : bounds.employeeStartRow;
-  ensureEnoughRows_(sheet, insertRow);
-  sheet.insertRowsBefore(insertRow, rowsToAdd);
-
-  const templateRow = findTemplateEmployeeRow_(sheet, bounds, insertRow) || TABLE_HEADER_ROW;
-  const targetRange = sheet.getRange(insertRow, 1, rowsToAdd, width);
-  sheet.getRange(templateRow, 1, 1, width).copyTo(targetRange, { formatOnly: true });
-  targetRange.clearContent().setFontWeight("normal");
   applyAuditFormatting();
 }
 
@@ -212,10 +181,9 @@ function createDocument() {
   ensureEnoughColumns_(sheet, Math.max(FIRST_ATTENDANCE_COLUMN, COLS_TO_ADD));
 
   setupMasterSelector(sheet);
-  writeGlobalHeaderRow(sheet);
   getShiftSections().forEach(function(section) {
     const titleRow = getConfiguredSectionInsertRow_(section);
-    ensureEnoughRows_(sheet, titleRow);
+    ensureEnoughRows_(sheet, titleRow + SECTION_HEADER_ROWS);
     writeSectionSkeleton_(sheet, titleRow, section);
   });
   applyAuditFormatting();
@@ -262,13 +230,11 @@ function applyAuditFormatting() {
   sheet.setFrozenColumns(0);
   ensureEnoughColumns_(sheet, FIRST_ATTENDANCE_COLUMN);
   setupMasterSelector(sheet);
-  writeGlobalHeaderRow(sheet);
   ensureShiftSections(sheet);
-  removeSectionHeaderRows_(sheet);
 
   const width = getAuditWidth();
   const lastRow = Math.max(getAuditDataDepth(), START_ROW);
-  sheet.getRange(TABLE_HEADER_ROW, 1, lastRow - TABLE_HEADER_ROW + 1, width)
+  sheet.getRange(START_ROW, 1, lastRow - START_ROW + 1, width)
     .setBackground(null)
     .setFontWeight("normal")
     .setFontColor("#000000")
@@ -284,8 +250,6 @@ function applyAuditFormatting() {
 }
 
 function formatSection(sheet, bounds, width) {
-  formatGlobalHeaderRow_(sheet, width);
-
   sheet.getRange(bounds.titleRow, 1, 1, width)
     .breakApart()
     .merge()
@@ -297,6 +261,19 @@ function formatSection(sheet, bounds, width) {
     .setFontFamily(GLOBAL_FONT)
     .setHorizontalAlignment("left")
     .setBorder(true, true, true, true, null, null, "black", SpreadsheetApp.BorderStyle.SOLID);
+
+  sheet.getRange(bounds.headerRow, 1, 1, width)
+    .breakApart()
+    .setBackground(THEMES.HEADER.BACKGROUND)
+    .setFontFamily(THEMES.HEADER.FONT)
+    .setFontWeight(THEMES.HEADER.FONT_WEIGHT)
+    .setFontLine(THEMES.HEADER.TEXT_DECORATION)
+    .setHorizontalAlignment("center")
+    .setBorder(true, true, true, true, true, null, "black", SpreadsheetApp.BorderStyle.SOLID);
+
+  sheet.getRange(bounds.headerRow, SECTION_NAME_COLUMN).setValue("Name");
+  sheet.getRange(bounds.headerRow, SECTION_HIRE_STATUS_COLUMN).setValue("Hire Status");
+  writeDateHeaders_(sheet, bounds.headerRow, width);
 
   if (bounds.numEmployeeRows > 0) {
     formatEmployeeRows_(sheet, bounds, width);
@@ -359,26 +336,11 @@ function formatStatusControl(sheet, status) {
 }
 
 function writeSectionSkeleton_(sheet, titleRow, section) {
-  sheet.getRange(titleRow, 1).setValue(section.title);
-}
-
-function writeGlobalHeaderRow(sheet) {
   const width = getAuditWidth();
-  sheet.getRange(TABLE_HEADER_ROW, SECTION_NAME_COLUMN).setValue("Name");
-  sheet.getRange(TABLE_HEADER_ROW, SECTION_HIRE_STATUS_COLUMN).setValue("Hire Status");
-  writeDateHeaders_(sheet, TABLE_HEADER_ROW, width);
-}
-
-function formatGlobalHeaderRow_(sheet, width) {
-  sheet.getRange(TABLE_HEADER_ROW, 1, 1, width)
-    .breakApart()
-    .setBackground(THEMES.HEADER.BACKGROUND)
-    .setFontFamily(THEMES.HEADER.FONT)
-    .setFontWeight(THEMES.HEADER.FONT_WEIGHT)
-    .setFontLine(THEMES.HEADER.TEXT_DECORATION)
-    .setHorizontalAlignment("center")
-    .setBorder(true, true, true, true, true, null, "black", SpreadsheetApp.BorderStyle.SOLID);
-  writeGlobalHeaderRow(sheet);
+  sheet.getRange(titleRow, 1).setValue(section.title);
+  sheet.getRange(titleRow + SECTION_TITLE_ROWS, SECTION_NAME_COLUMN).setValue("Name");
+  sheet.getRange(titleRow + SECTION_TITLE_ROWS, SECTION_HIRE_STATUS_COLUMN).setValue("Hire Status");
+  writeDateHeaders_(sheet, titleRow + SECTION_TITLE_ROWS, width);
 }
 
 function writeDateHeaders_(sheet, row, width) {
@@ -429,41 +391,6 @@ function ensureEnoughRows_(sheet, row) {
 
 function ensureEnoughColumns_(sheet, col) {
   if (sheet.getMaxColumns() < col) sheet.insertColumnsAfter(sheet.getMaxColumns(), col - sheet.getMaxColumns());
-}
-
-function removeSectionHeaderRows_(sheet) {
-  const width = Math.max(sheet.getLastColumn(), FIRST_ATTENDANCE_COLUMN);
-  const lastRow = Math.max(sheet.getLastRow(), START_ROW);
-  const values = sheet.getRange(1, 1, lastRow, width).getDisplayValues();
-  const byTitle = getSectionByTitle_();
-  const rowsToDelete = [];
-
-  for (let r = 0; r < values.length - 1; r++) {
-    if (!byTitle[normalizeSectionTitle_(values[r][0])]) continue;
-    const nextRow = values[r + 1];
-    if (String(nextRow[SECTION_NAME_COLUMN - 1]).trim().toLowerCase() === "name" &&
-        String(nextRow[SECTION_HIRE_STATUS_COLUMN - 1]).trim().toLowerCase() === "hire status") {
-      rowsToDelete.push(r + 2);
-    }
-  }
-
-  rowsToDelete.reverse().forEach(function(row) {
-    sheet.deleteRow(row);
-  });
-}
-
-function getDebugAddRowsLabel_(section) {
-  return DEBUG_ADD_ROWS_LABEL_PREFIX + " " + DEBUG_EMPTY_ROWS_TO_ADD + " Rows - " + section.title;
-}
-
-function isDebugModeEnabled_() {
-  return DEBUG_MODE === 1 || DEBUG_MODE === true || String(DEBUG_MODE).trim() === "1";
-}
-
-function refreshDropdownOptions() {
-  const sheet = getAuditSheet();
-  if (!sheet) return;
-  setupMasterSelector(sheet);
 }
 
 function getSectionByTitle_() {
