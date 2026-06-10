@@ -10,10 +10,7 @@ const THEMES = {
   STATUS: {
     DEFAULT_BACKGROUND: "#000000",
     DEFAULT_FONT: "#ffffff",
-<<<<<<< ours
-=======
     NEEDS_FORMATTING_BACKGROUND: "#e69138",
->>>>>>> theirs
     WORKING_BACKGROUND: "#f1c232",
     ADD_COLUMNS_BACKGROUND: "#6fa8dc",
     ERROR_BACKGROUND: "#cc0000"

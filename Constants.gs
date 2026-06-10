@@ -12,11 +12,8 @@ const MASTER_CELL = "A1";
 
 // Dropdown Statuses
 const STATUS_IDLE = "Idle";
-<<<<<<< ours
-=======
 const STATUS_NEEDS_FORMATTING = "Needs Formatting";
 const STATUS_APPLY_FORMATTING = "Apply Formatting";
->>>>>>> theirs
 const STATUS_WORKING = "Formatting Document";
 const STATUS_ADD_COLUMNS = "Add Columns";
 const STATUS_ERROR = "ERROR";
@@ -25,14 +22,6 @@ const STATUS_ERROR = "ERROR";
 const COLS_TO_ADD = 21;
 const HEADER_START_DATE = new Date("04/11/2026");
 const TEMPLATE_SHEET_NAME = "Empty (for copy/paste)";
-<<<<<<< ours
-
-// Shift Section Settings
-const SHIFT_SECTIONS = [
-  { key: "first", title: "FIRST SHIFT", addLabel: "Add First Shift Employee" },
-  { key: "second", title: "SECOND SHIFT", addLabel: "Add Second Shift Employee" },
-  { key: "third", title: "THIRD SHIFT", addLabel: "Add Third Shift Employee" }
-=======
 const NEEDS_FORMATTING_PROPERTY = "NEEDS_FORMATTING";
 
 // Shift Section Settings
@@ -42,7 +31,6 @@ const SHIFT_SECTIONS = [
   { key: "first", title: "FIRST SHIFT", addLabel: "Add First Shift Employee", titleRow: 3 },
   { key: "second", title: "SECOND SHIFT", addLabel: "Add Second Shift Employee", titleRow: 20 },
   { key: "third", title: "THIRD SHIFT", addLabel: "Add Third Shift Employee", titleRow: 37 }
->>>>>>> theirs
 ];
 const SECTION_TITLE_ROWS = 1;
 const SECTION_HEADER_ROWS = 1;

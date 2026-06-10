@@ -13,43 +13,6 @@ function onEdit(e) {
 
   const range = e.range;
   const sheet = range.getSheet();
-<<<<<<< ours
-  const a1Notation = range.getA1Notation();
-  const newValue = e.value;
-
-  if (sheet.getName() !== AUDIT_SHEET_NAME) return;
-
-  const addEmployeeActions = getAddEmployeeActionMap();
-  const isMasterCellEdit = a1Notation === MASTER_CELL;
-
-  try {
-    if (isMasterCellEdit && addEmployeeActions[newValue]) {
-      setStatus(sheet, STATUS_WORKING);
-      addEmployeeToSection(sheet, addEmployeeActions[newValue]);
-      resetStatus(sheet);
-      return;
-    }
-
-    if (isMasterCellEdit && newValue === STATUS_ADD_COLUMNS) {
-      setStatus(sheet, STATUS_ADD_COLUMNS);
-      addColumnsToAllSections(sheet);
-      resetStatus(sheet);
-      return;
-    }
-
-    const isDropdownTrigger = isMasterCellEdit && newValue === STATUS_WORKING;
-    const isDataEdit = !isMasterCellEdit && range.getColumn() <= SECTION_HIRE_STATUS_COLUMN;
-
-    if (isDropdownTrigger || isDataEdit) {
-      setStatus(sheet, STATUS_WORKING);
-      runMainWorkflow(sheet);
-      resetStatus(sheet);
-    }
-  } catch (err) {
-    setStatus(sheet, STATUS_ERROR);
-    console.log(err && err.stack ? err.stack : err);
-  }
-=======
   if (sheet.getName() !== AUDIT_SHEET_NAME) return;
 
   const isMasterCellEdit = range.getA1Notation() === MASTER_CELL;
@@ -85,5 +48,4 @@ function onEdit(e) {
   }
 
   setupMasterSelector(sheet);
->>>>>>> theirs
 }
