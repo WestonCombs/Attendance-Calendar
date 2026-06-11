@@ -16,10 +16,18 @@ function onEdit(e) {
   if (sheet.getName() !== AUDIT_SHEET_NAME) return;
 
   const isMasterCellEdit = range.getA1Notation() === MASTER_CELL;
+  if (!isMasterCellEdit && isEmployeeNameColumnEdit_(sheet, range)) {
+    if (runLockedAction(sheet, function() {
+      runMainWorkflow(sheet);
+    })) resetStatus(sheet);
+    return;
+  }
+
   if (!isMasterCellEdit) return;
 
   const newValue = e.value;
   const addEmployeeActions = getAddEmployeeActionMap();
+  const debugAddRowsActions = getDebugAddRowsActionMap();
 
   if (newValue === STATUS_WORKING) {
     if (runLockedAction(sheet, function() {
@@ -42,7 +50,14 @@ function onEdit(e) {
     return;
   }
 
-  if (DEBUG_MODE === 1 && newValue === STATUS_CREATE_DOCUMENT) {
+  if (isDebugModeEnabled_() && debugAddRowsActions[newValue]) {
+    if (runLockedAction(sheet, function() {
+      addEmptyRowsToSection(sheet, debugAddRowsActions[newValue], DEBUG_EMPTY_ROWS_TO_ADD);
+    })) resetStatus(sheet);
+    return;
+  }
+
+  if (isDebugModeEnabled_() && newValue === STATUS_CREATE_DOCUMENT) {
     if (runLockedAction(sheet, function() {
       createDocument();
     })) resetStatus(sheet);
@@ -50,4 +65,18 @@ function onEdit(e) {
   }
 
   setupMasterSelector(sheet);
+}
+
+function isEmployeeNameColumnEdit_(sheet, range) {
+  const firstEditedColumn = range.getColumn();
+  const lastEditedColumn = firstEditedColumn + range.getNumColumns() - 1;
+  if (firstEditedColumn > SECTION_NAME_COLUMN || lastEditedColumn < SECTION_NAME_COLUMN) return false;
+
+  const firstEditedRow = range.getRow();
+  const lastEditedRow = firstEditedRow + range.getNumRows() - 1;
+  if (lastEditedRow < START_ROW) return false;
+
+  return findSectionBounds(sheet).some(function(bounds) {
+    return firstEditedRow <= bounds.employeeEndRow && lastEditedRow >= bounds.employeeStartRow;
+  });
 }
